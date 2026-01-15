@@ -51,6 +51,11 @@
       "react-app/jest"
     ]
   },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(axios|@tanstack|zustand|mixpanel-browser)/)"
+    ]
+  },
   "browserslist": {
     "production": [
       ">0.2%",
