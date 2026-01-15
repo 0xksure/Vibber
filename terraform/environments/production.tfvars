@@ -1,8 +1,9 @@
-# Production Environment Configuration - Cost Optimized
+# Production Environment Configuration - Cost Optimized (Frankfurt)
 
-environment = "production"
-region      = "nyc1"
-app_region  = "nyc"
+environment   = "production"
+region        = "fra1"
+app_region    = "fra"
+spaces_region = "fra1"
 
 # App Platform - cheapest option ($5/service/month)
 app_instance_size = "basic-xxs"

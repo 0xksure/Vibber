@@ -18,21 +18,21 @@ variable "environment" {
 }
 
 variable "region" {
-  description = "DigitalOcean region for databases"
+  description = "DigitalOcean region for databases (Frankfurt)"
   type        = string
-  default     = "nyc1"
+  default     = "fra1"
 }
 
 variable "app_region" {
-  description = "DigitalOcean App Platform region"
+  description = "DigitalOcean App Platform region (Frankfurt)"
   type        = string
-  default     = "nyc"
+  default     = "fra"
 }
 
 variable "spaces_region" {
-  description = "DigitalOcean Spaces region"
+  description = "DigitalOcean Spaces region (Frankfurt)"
   type        = string
-  default     = "nyc3"
+  default     = "fra1"
 }
 
 # App Platform Configuration

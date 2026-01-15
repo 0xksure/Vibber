@@ -12,7 +12,7 @@ terraform {
   }
 
   backend "s3" {
-    endpoint                    = "nyc3.digitaloceanspaces.com"
+    endpoint                    = "fra1.digitaloceanspaces.com"
     key                         = "terraform/vibber/terraform.tfstate"
     bucket                      = "vibber-terraform-state"
     region                      = "us-east-1"
@@ -27,11 +27,10 @@ provider "digitalocean" {
   token = var.do_token
 }
 
-# Container Registry for storing Docker images
+# Container Registry for storing Docker images (global, no region needed)
 resource "digitalocean_container_registry" "vibber" {
   name                   = "vibber"
-  subscription_tier_slug = var.environment == "production" ? "professional" : "starter"
-  region                 = var.region
+  subscription_tier_slug = "starter"
 }
 
 # Connect registry to App Platform

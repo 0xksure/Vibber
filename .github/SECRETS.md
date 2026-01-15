@@ -20,7 +20,7 @@ Navigate to your repository settings: **Settings > Secrets and variables > Actio
 | `SPACES_ACCESS_KEY` | DigitalOcean Spaces access key for Terraform state | [DigitalOcean Spaces Keys](https://cloud.digitalocean.com/account/api/spaces) - Generate New Key |
 | `SPACES_SECRET_KEY` | DigitalOcean Spaces secret key for Terraform state | Same location as Access Key |
 
-> **Note**: Create a Spaces bucket named `vibber-terraform-state` in the `nyc3` region before running Terraform.
+> **Note**: Create a Spaces bucket named `vibber-terraform-state` in the `fra1` (Frankfurt) region before running Terraform.
 
 ### AI Service Secrets
 
