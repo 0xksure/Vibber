@@ -39,14 +39,14 @@ resource "digitalocean_container_registry_docker_credentials" "vibber" {
   registry_name = digitalocean_container_registry.vibber.name
 }
 
-# Managed PostgreSQL Database
+# Managed PostgreSQL Database (single node for cost savings)
 resource "digitalocean_database_cluster" "postgres" {
   name       = "vibber-db-${var.environment}"
   engine     = "pg"
   version    = "16"
   size       = var.db_size
   region     = var.region
-  node_count = var.environment == "production" ? 2 : 1
+  node_count = 1
 
   maintenance_window {
     hour = 2
@@ -118,10 +118,10 @@ resource "digitalocean_app" "vibber" {
       type = "PRIMARY"
     }
 
-    # Frontend Service
+    # Frontend Service (single instance for cost savings)
     service {
       name               = "frontend"
-      instance_count     = var.environment == "production" ? 2 : 1
+      instance_count     = 1
       instance_size_slug = var.app_instance_size
       http_port          = 80
 
@@ -155,10 +155,10 @@ resource "digitalocean_app" "vibber" {
       }
     }
 
-    # Backend API Service
+    # Backend API Service (single instance for cost savings)
     service {
       name               = "backend"
-      instance_count     = var.environment == "production" ? 2 : 1
+      instance_count     = 1
       instance_size_slug = var.app_instance_size
       http_port          = 8080
 
@@ -232,10 +232,10 @@ resource "digitalocean_app" "vibber" {
       }
     }
 
-    # AI Agent Service
+    # AI Agent Service (single instance for cost savings)
     service {
       name               = "ai-agent"
-      instance_count     = var.environment == "production" ? 2 : 1
+      instance_count     = 1
       instance_size_slug = var.app_instance_size
       http_port          = 8000
 

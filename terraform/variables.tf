@@ -37,20 +37,20 @@ variable "spaces_region" {
 
 # App Platform Configuration
 variable "app_instance_size" {
-  description = "Instance size for App Platform services (basic-xxs, basic-xs, basic-s, basic-m, professional-xs, professional-s, professional-m)"
+  description = "Instance size for App Platform services (basic-xxs is cheapest at $5/month)"
   type        = string
   default     = "basic-xxs"
 }
 
-# Database Configuration
+# Database Configuration (cheapest options)
 variable "db_size" {
-  description = "Database droplet size"
+  description = "Database droplet size (db-s-1vcpu-1gb is cheapest at ~$15/month)"
   type        = string
   default     = "db-s-1vcpu-1gb"
 }
 
 variable "cache_size" {
-  description = "Redis cache droplet size"
+  description = "Redis cache droplet size (db-s-1vcpu-1gb is cheapest at ~$15/month)"
   type        = string
   default     = "db-s-1vcpu-1gb"
 }

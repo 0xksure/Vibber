@@ -1,15 +1,14 @@
-# Production Environment Configuration
+# Production Environment Configuration - Cost Optimized
 
 environment = "production"
 region      = "nyc1"
 app_region  = "nyc"
 
-# App Platform - using basic-xs for cost efficiency
-# Options: basic-xxs ($5), basic-xs ($10), basic-s ($20), professional-xs ($25)
-app_instance_size = "basic-xs"
+# App Platform - cheapest option ($5/service/month)
+app_instance_size = "basic-xxs"
 
-# Database - smallest production-ready sizes
-db_size    = "db-s-1vcpu-2gb"
+# Database - cheapest options (~$15/month each)
+db_size    = "db-s-1vcpu-1gb"
 cache_size = "db-s-1vcpu-1gb"
 
 # Domain
