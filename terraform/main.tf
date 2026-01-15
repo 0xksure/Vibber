@@ -51,9 +51,9 @@ resource "digitalocean_container_registry" "vibber" {
 
 # Kubernetes Cluster
 resource "digitalocean_kubernetes_cluster" "vibber" {
-  name    = "vibber-k8s-${var.environment}"
-  region  = var.region
-  version = var.kubernetes_version
+  name     = "vibber-k8s-${var.environment}"
+  region   = var.region
+  version  = var.kubernetes_version
   vpc_uuid = digitalocean_vpc.vibber.id
 
   node_pool {
