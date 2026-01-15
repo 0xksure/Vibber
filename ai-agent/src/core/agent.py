@@ -23,6 +23,7 @@ from src.tools.base import ToolRegistry
 from src.tools.slack import SlackTool
 from src.tools.github import GitHubTool
 from src.tools.jira import JiraTool
+from src.services.mcp_service import MCPService
 
 logger = structlog.get_logger()
 
@@ -45,15 +46,19 @@ class Agent:
         vector_store: VectorStore,
         cache: RedisCache,
         personality_engine: PersonalityEngine,
+        mcp_service: Optional[MCPService] = None,
+        org_id: Optional[UUID] = None,
     ):
         self.agent_id = agent_id
         self.user_id = user_id
+        self.org_id = org_id
         self.anthropic = anthropic_client
         self.openai = openai_client
         self.embedder = embedder
         self.vector_store = vector_store
         self.cache = cache
         self.personality_engine = personality_engine
+        self.mcp_service = mcp_service
 
         # Agent state
         self.config: Dict[str, Any] = {}
@@ -441,21 +446,99 @@ Return your response in JSON format:
         response: dict,
         input_data: dict
     ) -> dict:
-        """Execute the decided action using appropriate tool"""
+        """Execute the decided action using MCP service or fallback tools"""
+        action = response.get("action", "reply")
+        response_text = response.get("response_text", "")
+
+        # Try MCP service first if available and org_id is set
+        if self.mcp_service and self.org_id:
+            try:
+                # Map action to MCP tool name
+                tool_name = self._map_action_to_mcp_tool(provider, action)
+                if tool_name:
+                    # Build arguments based on provider and action
+                    arguments = self._build_mcp_arguments(
+                        provider, action, response_text, input_data
+                    )
+                    result = await self.mcp_service.execute_tool(
+                        self.org_id, tool_name, arguments
+                    )
+                    if "error" not in result:
+                        return {"success": True, "result": result, "via": "mcp"}
+                    logger.warning(
+                        "MCP tool execution failed, falling back",
+                        tool=tool_name,
+                        error=result.get("error")
+                    )
+            except Exception as e:
+                logger.warning(f"MCP execution failed, falling back to legacy tools: {e}")
+
+        # Fallback to legacy tool registry
         tool = self.tool_registry.get(provider)
         if not tool:
             return {"success": False, "error": "No tool available for provider"}
 
         try:
             result = await tool.execute(
-                action=response.get("action", "reply"),
-                response_text=response.get("response_text", ""),
+                action=action,
+                response_text=response_text,
                 input_data=input_data
             )
-            return {"success": True, "result": result}
+            return {"success": True, "result": result, "via": "legacy"}
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
             return {"success": False, "error": str(e)}
+
+    def _map_action_to_mcp_tool(self, provider: str, action: str) -> Optional[str]:
+        """Map provider action to MCP tool name"""
+        tool_mapping = {
+            "slack": {
+                "reply": "slack_send_message",
+                "respond": "slack_send_message",
+                "react": "slack_send_message",  # Handle differently
+                "update": "slack_send_message",
+            },
+            "github": {
+                "comment": "github_comment_issue",
+                "reply": "github_comment_issue",
+                "create_issue": "github_create_issue",
+            },
+            "jira": {
+                "comment": "jira_add_comment",
+                "reply": "jira_add_comment",
+                "create": "jira_create_issue",
+                "transition": "jira_transition_issue",
+            }
+        }
+        return tool_mapping.get(provider, {}).get(action)
+
+    def _build_mcp_arguments(
+        self,
+        provider: str,
+        action: str,
+        response_text: str,
+        input_data: dict
+    ) -> dict:
+        """Build MCP tool arguments from action context"""
+        if provider == "slack":
+            return {
+                "channel": input_data.get("channel") or input_data.get("channel_id"),
+                "text": response_text,
+                "thread_ts": input_data.get("thread_ts") or input_data.get("ts")
+            }
+        elif provider == "github":
+            return {
+                "owner": input_data.get("owner"),
+                "repo": input_data.get("repo"),
+                "issue_number": input_data.get("issue_number") or input_data.get("number"),
+                "body": response_text
+            }
+        elif provider == "jira":
+            return {
+                "issue_key": input_data.get("issue_key") or input_data.get("key"),
+                "comment": response_text
+            }
+        return {"text": response_text}
 
     def _get_escalation_reason(self, confidence: int, intent: dict) -> str:
         """Generate human-readable escalation reason"""

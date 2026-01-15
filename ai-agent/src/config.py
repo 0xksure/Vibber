@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     github_token: str = ""
     jira_api_token: str = ""
 
+    # Backend Service Communication
+    backend_url: str = "http://localhost:8080"
+    internal_service_key: str = "dev-internal-service-key"
+
+    # MCP Configuration
+    mcp_enabled: bool = True
+    mcp_server_timeout: int = 30
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

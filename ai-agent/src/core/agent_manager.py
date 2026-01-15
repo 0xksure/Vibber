@@ -16,6 +16,8 @@ from src.core.personality import PersonalityEngine
 from src.embeddings.embedder import Embedder
 from src.memory.vector_store import VectorStore
 from src.memory.redis_cache import RedisCache
+from src.services.mcp_service import MCPService
+from src.services.credentials import CredentialsClient
 
 logger = structlog.get_logger()
 
@@ -34,6 +36,8 @@ class AgentManager:
         self.vector_store: Optional[VectorStore] = None
         self.cache: Optional[RedisCache] = None
         self.personality_engine: Optional[PersonalityEngine] = None
+        self.credentials_client: Optional[CredentialsClient] = None
+        self.mcp_service: Optional[MCPService] = None
         self._lock = asyncio.Lock()
 
     async def initialize(self):
@@ -68,6 +72,12 @@ class AgentManager:
             self.cache
         )
 
+        # Initialize credentials client and MCP service
+        if settings.mcp_enabled:
+            self.credentials_client = CredentialsClient()
+            self.mcp_service = MCPService(self.credentials_client)
+            logger.info("MCP service initialized")
+
         logger.info("Agent Manager initialized successfully")
 
     async def shutdown(self):
@@ -78,6 +88,10 @@ class AgentManager:
         for agent_id in list(self.agents.keys()):
             await self.unload_agent(agent_id)
 
+        # Shutdown MCP service
+        if self.mcp_service:
+            await self.mcp_service.shutdown()
+
         # Close connections
         if self.cache:
             await self.cache.close()
@@ -86,7 +100,12 @@ class AgentManager:
 
         logger.info("Agent Manager shutdown complete")
 
-    async def get_or_create_agent(self, agent_id: UUID, user_id: UUID) -> Agent:
+    async def get_or_create_agent(
+        self,
+        agent_id: UUID,
+        user_id: UUID,
+        org_id: Optional[UUID] = None
+    ) -> Agent:
         """Get existing agent or create new one"""
         async with self._lock:
             if agent_id not in self.agents:
@@ -99,10 +118,12 @@ class AgentManager:
                     vector_store=self.vector_store,
                     cache=self.cache,
                     personality_engine=self.personality_engine,
+                    mcp_service=self.mcp_service,
+                    org_id=org_id,
                 )
                 await agent.load()
                 self.agents[agent_id] = agent
-                logger.info("Agent loaded", agent_id=str(agent_id))
+                logger.info("Agent loaded", agent_id=str(agent_id), org_id=str(org_id) if org_id else None)
 
             return self.agents[agent_id]
 
@@ -119,14 +140,15 @@ class AgentManager:
         self,
         agent_id: UUID,
         user_id: UUID,
-        interaction_data: dict
+        interaction_data: dict,
+        org_id: Optional[UUID] = None
     ) -> dict:
         """
         Process an incoming interaction through the appropriate agent.
 
         This is the main entry point for all agent interactions.
         """
-        agent = await self.get_or_create_agent(agent_id, user_id)
+        agent = await self.get_or_create_agent(agent_id, user_id, org_id)
 
         # Process the interaction
         result = await agent.process(interaction_data)
@@ -137,10 +159,11 @@ class AgentManager:
         self,
         agent_id: UUID,
         user_id: UUID,
-        training_data: dict
+        training_data: dict,
+        org_id: Optional[UUID] = None
     ) -> dict:
         """Train an agent with new samples"""
-        agent = await self.get_or_create_agent(agent_id, user_id)
+        agent = await self.get_or_create_agent(agent_id, user_id, org_id)
 
         result = await agent.train(training_data)
 
@@ -161,11 +184,25 @@ class AgentManager:
         self,
         agent_id: UUID,
         user_id: UUID,
-        settings: dict
+        settings: dict,
+        org_id: Optional[UUID] = None
     ) -> dict:
         """Update agent configuration"""
-        agent = await self.get_or_create_agent(agent_id, user_id)
+        agent = await self.get_or_create_agent(agent_id, user_id, org_id)
 
         await agent.update_settings(settings)
 
         return {"success": True}
+
+    def invalidate_org_credentials(self, org_id: UUID, provider: Optional[str] = None):
+        """
+        Invalidate cached credentials when organization updates their OAuth apps.
+        Called by webhook when credentials are changed.
+        """
+        if self.mcp_service:
+            self.mcp_service.invalidate_server(org_id, provider)
+            logger.info(
+                "Invalidated credentials for org",
+                org_id=str(org_id),
+                provider=provider
+            )

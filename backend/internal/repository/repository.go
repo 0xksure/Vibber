@@ -20,6 +20,7 @@ type Repositories struct {
 	Interaction  InteractionRepository
 	Escalation   EscalationRepository
 	Training     TrainingRepository
+	Credential   CredentialRepository
 }
 
 // NewRepositories creates a new repositories instance
@@ -32,6 +33,7 @@ func NewRepositories(db *pgxpool.Pool) *Repositories {
 		Interaction:  &interactionRepository{db: db},
 		Escalation:   &escalationRepository{db: db},
 		Training:     &trainingRepository{db: db},
+		Credential:   &credentialRepository{db: db},
 	}
 }
 
@@ -139,6 +141,17 @@ type TrainingRepository interface {
 	Create(ctx context.Context, sample *models.TrainingSample) error
 	ListByAgentID(ctx context.Context, agentID uuid.UUID) ([]*models.TrainingSample, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// CredentialRepository interface
+type CredentialRepository interface {
+	Create(ctx context.Context, cred *models.OrganizationCredential) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.OrganizationCredential, error)
+	GetByOrgAndProvider(ctx context.Context, orgID uuid.UUID, provider string) (*models.OrganizationCredential, error)
+	ListByOrgID(ctx context.Context, orgID uuid.UUID) ([]*models.OrganizationCredential, error)
+	Update(ctx context.Context, cred *models.OrganizationCredential) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	MarkVerified(ctx context.Context, id uuid.UUID) error
 }
 
 // Implementation stubs - these would be fully implemented in production
@@ -585,5 +598,75 @@ func (r *trainingRepository) ListByAgentID(ctx context.Context, agentID uuid.UUI
 
 func (r *trainingRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM training_samples WHERE id = $1`, id)
+	return err
+}
+
+type credentialRepository struct {
+	db *pgxpool.Pool
+}
+
+func (r *credentialRepository) Create(ctx context.Context, cred *models.OrganizationCredential) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO organization_credentials (id, org_id, provider, client_id, client_secret, webhook_secret, signing_secret, config, is_active, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+	`, cred.ID, cred.OrgID, cred.Provider, cred.ClientID, cred.ClientSecret, cred.WebhookSecret, cred.SigningSecret, cred.Config, cred.IsActive, cred.CreatedBy)
+	return err
+}
+
+func (r *credentialRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.OrganizationCredential, error) {
+	cred := &models.OrganizationCredential{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, org_id, provider, client_id, client_secret, webhook_secret, signing_secret, config, is_active, verified_at, created_by, created_at, updated_at
+		FROM organization_credentials WHERE id = $1
+	`, id).Scan(&cred.ID, &cred.OrgID, &cred.Provider, &cred.ClientID, &cred.ClientSecret, &cred.WebhookSecret, &cred.SigningSecret, &cred.Config, &cred.IsActive, &cred.VerifiedAt, &cred.CreatedBy, &cred.CreatedAt, &cred.UpdatedAt)
+	return cred, err
+}
+
+func (r *credentialRepository) GetByOrgAndProvider(ctx context.Context, orgID uuid.UUID, provider string) (*models.OrganizationCredential, error) {
+	cred := &models.OrganizationCredential{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, org_id, provider, client_id, client_secret, webhook_secret, signing_secret, config, is_active, verified_at, created_by, created_at, updated_at
+		FROM organization_credentials WHERE org_id = $1 AND provider = $2
+	`, orgID, provider).Scan(&cred.ID, &cred.OrgID, &cred.Provider, &cred.ClientID, &cred.ClientSecret, &cred.WebhookSecret, &cred.SigningSecret, &cred.Config, &cred.IsActive, &cred.VerifiedAt, &cred.CreatedBy, &cred.CreatedAt, &cred.UpdatedAt)
+	return cred, err
+}
+
+func (r *credentialRepository) ListByOrgID(ctx context.Context, orgID uuid.UUID) ([]*models.OrganizationCredential, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, org_id, provider, client_id, client_secret, webhook_secret, signing_secret, config, is_active, verified_at, created_by, created_at, updated_at
+		FROM organization_credentials WHERE org_id = $1
+	`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var credentials []*models.OrganizationCredential
+	for rows.Next() {
+		cred := &models.OrganizationCredential{}
+		if err := rows.Scan(&cred.ID, &cred.OrgID, &cred.Provider, &cred.ClientID, &cred.ClientSecret, &cred.WebhookSecret, &cred.SigningSecret, &cred.Config, &cred.IsActive, &cred.VerifiedAt, &cred.CreatedBy, &cred.CreatedAt, &cred.UpdatedAt); err != nil {
+			return nil, err
+		}
+		credentials = append(credentials, cred)
+	}
+	return credentials, nil
+}
+
+func (r *credentialRepository) Update(ctx context.Context, cred *models.OrganizationCredential) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE organization_credentials
+		SET client_id = $2, client_secret = $3, webhook_secret = $4, signing_secret = $5, config = $6, is_active = $7, verified_at = $8, updated_at = NOW()
+		WHERE id = $1
+	`, cred.ID, cred.ClientID, cred.ClientSecret, cred.WebhookSecret, cred.SigningSecret, cred.Config, cred.IsActive, cred.VerifiedAt)
+	return err
+}
+
+func (r *credentialRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM organization_credentials WHERE id = $1`, id)
+	return err
+}
+
+func (r *credentialRepository) MarkVerified(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE organization_credentials SET verified_at = NOW(), updated_at = NOW() WHERE id = $1`, id)
 	return err
 }

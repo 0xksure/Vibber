@@ -42,6 +42,9 @@ type Config struct {
 	// External Services
 	PineconeAPIKey string
 	PineconeIndex  string
+
+	// Internal Service Communication
+	InternalServiceKey string
 }
 
 // Load loads configuration from environment variables
@@ -69,6 +72,7 @@ func Load() (*Config, error) {
 		AnthropicAPIKey:    getEnv("ANTHROPIC_API_KEY", ""),
 		PineconeAPIKey:     getEnv("PINECONE_API_KEY", ""),
 		PineconeIndex:      getEnv("PINECONE_INDEX", "vibber-agents"),
+		InternalServiceKey: getEnv("INTERNAL_SERVICE_KEY", ""),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -86,6 +90,15 @@ func (c *Config) validate() error {
 	// Set a default JWT secret for development
 	if c.JWTSecret == "" {
 		c.JWTSecret = "dev-secret-change-in-production"
+	}
+
+	if c.InternalServiceKey == "" && c.Env == "production" {
+		return fmt.Errorf("INTERNAL_SERVICE_KEY is required in production")
+	}
+
+	// Set a default internal service key for development
+	if c.InternalServiceKey == "" {
+		c.InternalServiceKey = "dev-internal-service-key"
 	}
 
 	return nil

@@ -25,6 +25,7 @@ Navigate to your repository settings: **Settings > Secrets and variables > Actio
 | Secret Name | Description | How to Obtain |
 |------------|-------------|---------------|
 | `JWT_SECRET` | Secret key for JWT token signing | Generate a secure random string: `openssl rand -hex 32` |
+| `INTERNAL_SERVICE_KEY` | Secret key for AI agent to backend communication | Generate a secure random string: `openssl rand -hex 32` |
 | `MIXPANEL_TOKEN` | Mixpanel project token for analytics | [Mixpanel Settings](https://mixpanel.com/settings/project) - Project Token |
 
 ### OAuth Integration Secrets
@@ -65,6 +66,7 @@ gh secret set DIGITALOCEAN_CLUSTER_NAME --body "vibber-k8s-production"
 gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
 gh secret set OPENAI_API_KEY --body "sk-..."
 gh secret set JWT_SECRET --body "$(openssl rand -hex 32)"
+gh secret set INTERNAL_SERVICE_KEY --body "$(openssl rand -hex 32)"
 gh secret set MIXPANEL_TOKEN --body "your-mixpanel-token"
 gh secret set SLACK_CLIENT_ID --body "your-slack-client-id"
 gh secret set SLACK_CLIENT_SECRET --body "your-slack-client-secret"

@@ -162,6 +162,16 @@ func main() {
 				r.Get("/members", h.Organization.ListMembers)
 				r.Post("/members/invite", h.Organization.InviteMember)
 			})
+
+			// Credentials (organization OAuth app credentials)
+			r.Route("/credentials", func(r chi.Router) {
+				r.Get("/", h.Credentials.List)
+				r.Post("/", h.Credentials.Create)
+				r.Get("/{provider}", h.Credentials.Get)
+				r.Put("/{provider}", h.Credentials.Update)
+				r.Delete("/{provider}", h.Credentials.Delete)
+				r.Post("/{provider}/verify", h.Credentials.Verify)
+			})
 		})
 
 		// Webhook routes (validated by signature)
@@ -169,6 +179,12 @@ func main() {
 			r.Post("/slack", h.Webhook.Slack)
 			r.Post("/github", h.Webhook.GitHub)
 			r.Post("/jira", h.Webhook.Jira)
+		})
+
+		// Internal API routes (for AI agent service-to-service communication)
+		r.Route("/internal", func(r chi.Router) {
+			// Authenticated by X-Service-Key header
+			r.Get("/credentials", h.Credentials.GetForAgent)
 		})
 	})
 

@@ -146,6 +146,43 @@ type PerformanceMetrics struct {
 	AvgResponseTime   float64 `json:"avgResponseTime"`
 }
 
+// OrganizationCredential stores OAuth app credentials per organization
+// Organizations provide their own Slack, GitHub, Jira app credentials
+type OrganizationCredential struct {
+	ID            uuid.UUID  `json:"id" db:"id"`
+	OrgID         uuid.UUID  `json:"orgId" db:"org_id"`
+	Provider      string     `json:"provider" db:"provider"` // slack, github, jira, confluence, elastic
+	ClientID      string     `json:"clientId" db:"client_id"`
+	ClientSecret  string     `json:"-" db:"client_secret"` // Never expose in JSON
+	WebhookSecret *string    `json:"-" db:"webhook_secret"`
+	SigningSecret *string    `json:"-" db:"signing_secret"`
+	Config        *string    `json:"config" db:"config"` // JSON for provider-specific config
+	IsActive      bool       `json:"isActive" db:"is_active"`
+	VerifiedAt    *time.Time `json:"verifiedAt" db:"verified_at"`
+	CreatedBy     *uuid.UUID `json:"createdBy" db:"created_by"`
+	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updatedAt" db:"updated_at"`
+}
+
+// OrganizationCredentialConfig provider-specific configurations
+type SlackCredentialConfig struct {
+	WorkspaceID         string   `json:"workspaceId,omitempty"`
+	AllowedChannels     []string `json:"allowedChannels,omitempty"`
+	RestrictToWorkspace bool     `json:"restrictToWorkspace,omitempty"`
+}
+
+type GitHubCredentialConfig struct {
+	EnterpriseURL string   `json:"enterpriseUrl,omitempty"`
+	AllowedOrgs   []string `json:"allowedOrgs,omitempty"`
+	AllowedRepos  []string `json:"allowedRepos,omitempty"`
+}
+
+type JiraCredentialConfig struct {
+	SiteURL      string   `json:"siteUrl"` // e.g., https://your-domain.atlassian.net
+	IsCloud      bool     `json:"isCloud"`
+	AllowedProjects []string `json:"allowedProjects,omitempty"`
+}
+
 // Request/Response structures
 
 type LoginRequest struct {
@@ -200,4 +237,47 @@ type PaginatedResponse struct {
 	PageSize   int         `json:"pageSize"`
 	TotalItems int         `json:"totalItems"`
 	TotalPages int         `json:"totalPages"`
+}
+
+// Organization Credential Requests/Responses
+
+type CreateCredentialRequest struct {
+	Provider      string  `json:"provider" validate:"required,oneof=slack github jira confluence elastic"`
+	ClientID      string  `json:"clientId" validate:"required"`
+	ClientSecret  string  `json:"clientSecret" validate:"required"`
+	WebhookSecret *string `json:"webhookSecret,omitempty"`
+	SigningSecret *string `json:"signingSecret,omitempty"`
+	Config        *string `json:"config,omitempty"` // JSON string
+}
+
+type UpdateCredentialRequest struct {
+	ClientID      *string `json:"clientId,omitempty"`
+	ClientSecret  *string `json:"clientSecret,omitempty"`
+	WebhookSecret *string `json:"webhookSecret,omitempty"`
+	SigningSecret *string `json:"signingSecret,omitempty"`
+	Config        *string `json:"config,omitempty"`
+	IsActive      *bool   `json:"isActive,omitempty"`
+}
+
+// CredentialResponse is a safe response that doesn't expose secrets
+type CredentialResponse struct {
+	ID         uuid.UUID  `json:"id"`
+	Provider   string     `json:"provider"`
+	ClientID   string     `json:"clientId"`
+	HasSecret  bool       `json:"hasSecret"` // Indicates if secret is configured
+	Config     *string    `json:"config"`
+	IsActive   bool       `json:"isActive"`
+	VerifiedAt *time.Time `json:"verifiedAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
+}
+
+// CredentialForAgent is passed to the AI agent with full credentials
+type CredentialForAgent struct {
+	Provider      string  `json:"provider"`
+	ClientID      string  `json:"clientId"`
+	ClientSecret  string  `json:"clientSecret"`
+	WebhookSecret *string `json:"webhookSecret,omitempty"`
+	SigningSecret *string `json:"signingSecret,omitempty"`
+	Config        *string `json:"config,omitempty"`
 }
