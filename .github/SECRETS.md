@@ -13,6 +13,15 @@ Navigate to your repository settings: **Settings > Secrets and variables > Actio
 | `DIGITALOCEAN_ACCESS_TOKEN` | DigitalOcean API token for deploying infrastructure | [DigitalOcean API Tokens](https://cloud.digitalocean.com/account/api/tokens) - Create a new token with read/write access |
 | `DIGITALOCEAN_CLUSTER_NAME` | Name of your Kubernetes cluster | The name you specified when creating the cluster (e.g., `vibber-k8s-production`) |
 
+### Terraform State Backend (DigitalOcean Spaces)
+
+| Secret Name | Description | How to Obtain |
+|------------|-------------|---------------|
+| `SPACES_ACCESS_KEY` | DigitalOcean Spaces access key for Terraform state | [DigitalOcean Spaces Keys](https://cloud.digitalocean.com/account/api/spaces) - Generate New Key |
+| `SPACES_SECRET_KEY` | DigitalOcean Spaces secret key for Terraform state | Same location as Access Key |
+
+> **Note**: Create a Spaces bucket named `vibber-terraform-state` in the `nyc3` region before running Terraform.
+
 ### AI Service Secrets
 
 | Secret Name | Description | How to Obtain |
@@ -27,6 +36,7 @@ Navigate to your repository settings: **Settings > Secrets and variables > Actio
 | `JWT_SECRET` | Secret key for JWT token signing | Generate a secure random string: `openssl rand -hex 32` |
 | `INTERNAL_SERVICE_KEY` | Secret key for AI agent to backend communication | Generate a secure random string: `openssl rand -hex 32` |
 | `MIXPANEL_TOKEN` | Mixpanel project token for analytics | [Mixpanel Settings](https://mixpanel.com/settings/project) - Project Token |
+| `GRAFANA_ADMIN_PASSWORD` | Admin password for Grafana dashboard | Generate a secure random string: `openssl rand -base64 24` |
 
 ### OAuth Integration Secrets
 
@@ -40,8 +50,10 @@ Navigate to your repository settings: **Settings > Secrets and variables > Actio
 #### GitHub
 | Secret Name | Description | How to Obtain |
 |------------|-------------|---------------|
-| `GITHUB_CLIENT_ID` | GitHub OAuth app client ID | [GitHub Developer Settings](https://github.com/settings/developers) - OAuth Apps |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret | Same location as Client ID |
+| `OAUTH_GITHUB_CLIENT_ID` | GitHub OAuth app client ID | [GitHub Developer Settings](https://github.com/settings/developers) - OAuth Apps |
+| `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret | Same location as Client ID |
+
+> **Note**: We use `OAUTH_GITHUB_*` prefix to avoid conflict with GitHub's built-in `GITHUB_*` variables.
 
 #### Jira/Atlassian
 | Secret Name | Description | How to Obtain |
@@ -61,18 +73,35 @@ You can use the GitHub CLI to set secrets:
 gh auth login
 
 # Set secrets (replace with your actual values)
+
+# DigitalOcean
 gh secret set DIGITALOCEAN_ACCESS_TOKEN --body "your-do-token"
 gh secret set DIGITALOCEAN_CLUSTER_NAME --body "vibber-k8s-production"
+
+# Terraform State (DigitalOcean Spaces)
+gh secret set SPACES_ACCESS_KEY --body "your-spaces-access-key"
+gh secret set SPACES_SECRET_KEY --body "your-spaces-secret-key"
+
+# AI Services
 gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
 gh secret set OPENAI_API_KEY --body "sk-..."
+
+# Application Secrets
 gh secret set JWT_SECRET --body "$(openssl rand -hex 32)"
 gh secret set INTERNAL_SERVICE_KEY --body "$(openssl rand -hex 32)"
 gh secret set MIXPANEL_TOKEN --body "your-mixpanel-token"
+gh secret set GRAFANA_ADMIN_PASSWORD --body "$(openssl rand -base64 24)"
+
+# OAuth - Slack
 gh secret set SLACK_CLIENT_ID --body "your-slack-client-id"
 gh secret set SLACK_CLIENT_SECRET --body "your-slack-client-secret"
 gh secret set SLACK_SIGNING_SECRET --body "your-slack-signing-secret"
-gh secret set GITHUB_CLIENT_ID --body "your-github-client-id"
-gh secret set GITHUB_CLIENT_SECRET --body "your-github-client-secret"
+
+# OAuth - GitHub (using OAUTH_ prefix to avoid conflict)
+gh secret set OAUTH_GITHUB_CLIENT_ID --body "your-github-client-id"
+gh secret set OAUTH_GITHUB_CLIENT_SECRET --body "your-github-client-secret"
+
+# OAuth - Jira
 gh secret set JIRA_CLIENT_ID --body "your-jira-client-id"
 gh secret set JIRA_CLIENT_SECRET --body "your-jira-client-secret"
 ```
