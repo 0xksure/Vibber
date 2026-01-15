@@ -1,32 +1,26 @@
 # Vibber Terraform Outputs
 
-# Kubernetes Cluster
-output "kubernetes_cluster_id" {
-  description = "ID of the Kubernetes cluster"
-  value       = digitalocean_kubernetes_cluster.vibber.id
+# App Platform
+output "app_url" {
+  description = "Default URL for the App Platform app"
+  value       = digitalocean_app.vibber.default_ingress
 }
 
-output "kubernetes_cluster_name" {
-  description = "Name of the Kubernetes cluster"
-  value       = digitalocean_kubernetes_cluster.vibber.name
+output "app_live_url" {
+  description = "Live URL for the App Platform app"
+  value       = digitalocean_app.vibber.live_url
 }
 
-output "kubernetes_endpoint" {
-  description = "Kubernetes API endpoint"
-  value       = digitalocean_kubernetes_cluster.vibber.endpoint
-  sensitive   = true
-}
-
-output "kubeconfig" {
-  description = "Kubernetes configuration"
-  value       = digitalocean_kubernetes_cluster.vibber.kube_config[0].raw_config
-  sensitive   = true
+output "app_id" {
+  description = "App Platform app ID"
+  value       = digitalocean_app.vibber.id
 }
 
 # Database
 output "database_host" {
   description = "PostgreSQL database host"
-  value       = digitalocean_database_cluster.postgres.private_host
+  value       = digitalocean_database_cluster.postgres.host
+  sensitive   = true
 }
 
 output "database_port" {
@@ -44,22 +38,17 @@ output "database_user" {
   value       = digitalocean_database_user.vibber.name
 }
 
-output "database_password" {
-  description = "PostgreSQL database password"
-  value       = digitalocean_database_user.vibber.password
-  sensitive   = true
-}
-
 output "database_uri" {
   description = "PostgreSQL connection URI"
-  value       = digitalocean_database_cluster.postgres.private_uri
+  value       = digitalocean_database_cluster.postgres.uri
   sensitive   = true
 }
 
 # Redis
 output "redis_host" {
   description = "Redis host"
-  value       = digitalocean_database_cluster.redis.private_host
+  value       = digitalocean_database_cluster.redis.host
+  sensitive   = true
 }
 
 output "redis_port" {
@@ -69,8 +58,19 @@ output "redis_port" {
 
 output "redis_uri" {
   description = "Redis connection URI"
-  value       = digitalocean_database_cluster.redis.private_uri
+  value       = digitalocean_database_cluster.redis.uri
   sensitive   = true
+}
+
+# Storage
+output "spaces_bucket_name" {
+  description = "Spaces bucket name"
+  value       = digitalocean_spaces_bucket.vibber.name
+}
+
+output "spaces_bucket_domain" {
+  description = "Spaces bucket domain"
+  value       = digitalocean_spaces_bucket.vibber.bucket_domain_name
 }
 
 # Container Registry
@@ -79,67 +79,32 @@ output "registry_endpoint" {
   value       = digitalocean_container_registry.vibber.endpoint
 }
 
-output "registry_name" {
-  description = "Container registry name"
-  value       = digitalocean_container_registry.vibber.name
-}
-
-# Load Balancer
-output "load_balancer_ip" {
-  description = "Load balancer IP address"
-  value       = digitalocean_loadbalancer.vibber.ip
-}
-
-output "load_balancer_id" {
-  description = "Load balancer ID"
-  value       = digitalocean_loadbalancer.vibber.id
-}
-
-# Spaces
-output "spaces_bucket_name" {
-  description = "Spaces bucket name"
-  value       = digitalocean_spaces_bucket.vibber.name
-}
-
-output "spaces_bucket_urn" {
-  description = "Spaces bucket URN"
-  value       = digitalocean_spaces_bucket.vibber.urn
-}
-
-output "spaces_endpoint" {
-  description = "Spaces bucket endpoint"
-  value       = digitalocean_spaces_bucket.vibber.bucket_domain_name
-}
-
-output "cdn_endpoint" {
-  description = "CDN endpoint"
-  value       = digitalocean_cdn.vibber.endpoint
-}
-
-# VPC
-output "vpc_id" {
-  description = "VPC ID"
-  value       = digitalocean_vpc.vibber.id
-}
-
-output "vpc_urn" {
-  description = "VPC URN"
-  value       = digitalocean_vpc.vibber.urn
-}
-
-# URLs
-output "app_url" {
-  description = "Application URL"
-  value       = "https://app.${var.domain}"
-}
-
-output "api_url" {
-  description = "API URL"
-  value       = "https://api.${var.domain}"
+output "registry_server_url" {
+  description = "Container registry server URL"
+  value       = digitalocean_container_registry.vibber.server_url
 }
 
 # Project
 output "project_id" {
   description = "DigitalOcean project ID"
   value       = digitalocean_project.vibber.id
+}
+
+# Summary
+output "deployment_info" {
+  description = "Deployment information summary"
+  value = {
+    environment = var.environment
+    app_url     = digitalocean_app.vibber.live_url
+    region      = var.app_region
+    services = {
+      frontend = "Running on App Platform"
+      backend  = "Running on App Platform"
+      ai_agent = "Running on App Platform"
+    }
+    databases = {
+      postgres = digitalocean_database_cluster.postgres.name
+      redis    = digitalocean_database_cluster.redis.name
+    }
+  }
 }

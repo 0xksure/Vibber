@@ -18,9 +18,15 @@ variable "environment" {
 }
 
 variable "region" {
-  description = "DigitalOcean region"
+  description = "DigitalOcean region for databases"
   type        = string
   default     = "nyc1"
+}
+
+variable "app_region" {
+  description = "DigitalOcean App Platform region"
+  type        = string
+  default     = "nyc"
 }
 
 variable "spaces_region" {
@@ -29,35 +35,11 @@ variable "spaces_region" {
   default     = "nyc3"
 }
 
-# Kubernetes Configuration
-variable "kubernetes_version" {
-  description = "Kubernetes version"
+# App Platform Configuration
+variable "app_instance_size" {
+  description = "Instance size for App Platform services (basic-xxs, basic-xs, basic-s, basic-m, professional-xs, professional-s, professional-m)"
   type        = string
-  default     = "1.29.1-do.0"
-}
-
-variable "node_size" {
-  description = "Droplet size for Kubernetes nodes"
-  type        = string
-  default     = "s-2vcpu-4gb"
-}
-
-variable "node_count" {
-  description = "Initial number of nodes in the cluster"
-  type        = number
-  default     = 3
-}
-
-variable "min_nodes" {
-  description = "Minimum number of nodes for autoscaling"
-  type        = number
-  default     = 2
-}
-
-variable "max_nodes" {
-  description = "Maximum number of nodes for autoscaling"
-  type        = number
-  default     = 10
+  default     = "basic-xxs"
 }
 
 # Database Configuration
@@ -80,48 +62,10 @@ variable "domain" {
   default     = "vibber.io"
 }
 
-variable "manage_dns" {
-  description = "Whether Terraform should manage DNS records"
-  type        = bool
-  default     = false
-}
-
-variable "ssl_certificate_name" {
-  description = "Name of the SSL certificate in DigitalOcean"
-  type        = string
-  default     = ""
-}
-
-variable "cdn_domain" {
-  description = "Custom domain for CDN"
-  type        = string
-  default     = ""
-}
-
-variable "cdn_certificate_name" {
-  description = "Certificate name for CDN custom domain"
-  type        = string
-  default     = ""
-}
-
 variable "allowed_origins" {
   description = "Allowed origins for CORS on Spaces bucket"
   type        = list(string)
   default     = ["https://app.vibber.io", "https://vibber.io"]
-}
-
-# Monitoring
-variable "enable_monitoring" {
-  description = "Enable Prometheus/Grafana monitoring stack"
-  type        = bool
-  default     = true
-}
-
-variable "grafana_admin_password" {
-  description = "Grafana admin password"
-  type        = string
-  sensitive   = true
-  default     = "admin"
 }
 
 # Application Configuration
@@ -153,7 +97,14 @@ variable "jwt_secret" {
   default     = ""
 }
 
-# OAuth Credentials
+variable "internal_service_key" {
+  description = "Internal service key for agent-to-backend communication"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# OAuth Credentials (optional - can be set per-organization in the app)
 variable "slack_client_id" {
   description = "Slack OAuth client ID"
   type        = string

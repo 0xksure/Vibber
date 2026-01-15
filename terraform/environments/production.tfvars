@@ -2,21 +2,18 @@
 
 environment = "production"
 region      = "nyc1"
+app_region  = "nyc"
 
-# Kubernetes
-kubernetes_version = "1.29.1-do.0"
-node_size          = "s-4vcpu-8gb"
-node_count         = 3
-min_nodes          = 3
-max_nodes          = 15
+# App Platform - using basic-xs for cost efficiency
+# Options: basic-xxs ($5), basic-xs ($10), basic-s ($20), professional-xs ($25)
+app_instance_size = "basic-xs"
 
-# Database
-db_size    = "db-s-2vcpu-4gb"
-cache_size = "db-s-2vcpu-4gb"
+# Database - smallest production-ready sizes
+db_size    = "db-s-1vcpu-2gb"
+cache_size = "db-s-1vcpu-1gb"
 
 # Domain
-domain     = "vibber.io"
-manage_dns = true
+domain = "vibber.io"
 
 # CORS
 allowed_origins = [
@@ -24,6 +21,3 @@ allowed_origins = [
   "https://vibber.io",
   "https://www.vibber.io"
 ]
-
-# Monitoring
-enable_monitoring = true
