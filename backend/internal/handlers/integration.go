@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -217,11 +219,6 @@ func (h *IntegrationHandler) getConfluenceAuthURL(state string) string {
 }
 
 // Callback handlers - these would exchange codes for tokens
-import (
-	"context"
-	"time"
-)
-
 func (h *IntegrationHandler) handleSlackCallback(ctx context.Context, agentID uuid.UUID, code string) error {
 	// Exchange code for token using Slack API
 	// Store integration in database

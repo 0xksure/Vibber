@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -168,8 +169,6 @@ func (h *WebhookHandler) verifyGitHubSignature(body []byte, signature string) bo
 }
 
 // Event handlers - these would queue events for the AI agent to process
-import "context"
-
 func (h *WebhookHandler) handleSlackMessage(ctx context.Context, event map[string]interface{}) {
 	// Create interaction record
 	interaction := &models.Interaction{

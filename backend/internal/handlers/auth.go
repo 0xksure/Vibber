@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -295,5 +296,3 @@ func generateSlug(name string) string {
 	// Simple slug generation - in production use a proper slugify library
 	return name
 }
-
-import "context"

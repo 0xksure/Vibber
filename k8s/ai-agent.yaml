@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vibber-ai-agent
+  namespace: vibber
+  labels:
+    app: vibber-ai-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vibber-ai-agent
+  template:
+    metadata:
+      labels:
+        app: vibber-ai-agent
+    spec:
+      containers:
+        - name: ai-agent
+          image: registry.digitalocean.com/vibber/ai-agent:IMAGE_TAG
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: vibber-config
+            - secretRef:
+                name: vibber-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      imagePullSecrets:
+        - name: do-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vibber-ai-agent
+  namespace: vibber
+spec:
+  selector:
+    app: vibber-ai-agent
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vibber-ai-agent-hpa
+  namespace: vibber
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vibber-ai-agent
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70

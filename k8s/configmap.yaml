@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vibber-config
+  namespace: vibber
+data:
+  ENV: "production"
+  FRONTEND_URL: "https://app.vibber.io"
+  API_URL: "https://api.vibber.io"
+  AGENT_SERVICE_URL: "http://vibber-ai-agent:8000"
