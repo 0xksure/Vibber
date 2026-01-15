@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vibber-frontend
+  namespace: vibber
+  labels:
+    app: vibber-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vibber-frontend
+  template:
+    metadata:
+      labels:
+        app: vibber-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: registry.digitalocean.com/vibber/frontend:IMAGE_TAG
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      imagePullSecrets:
+        - name: do-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vibber-frontend
+  namespace: vibber
+spec:
+  selector:
+    app: vibber-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vibber-frontend-hpa
+  namespace: vibber
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vibber-frontend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
