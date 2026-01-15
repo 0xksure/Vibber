@@ -1,0 +1,57 @@
+# Vibber AI Agent Dependencies
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# AI/ML
+anthropic==0.18.1
+openai==1.12.0
+langchain==0.1.6
+langchain-anthropic==0.1.1
+langchain-openai==0.0.6
+langchain-community==0.0.19
+tiktoken==0.6.0
+
+# Vector Store
+pinecone-client==3.0.2
+qdrant-client==1.7.1
+
+# Database
+asyncpg==0.29.0
+sqlalchemy[asyncio]==2.0.25
+alembic==1.13.1
+redis==5.0.1
+
+# Message Queue
+aio-pika==9.4.0
+pika==1.3.2
+
+# HTTP Clients
+httpx==0.26.0
+aiohttp==3.9.3
+
+# Integrations
+slack-sdk==3.27.0
+PyGithub==2.2.0
+atlassian-python-api==3.41.10
+elasticsearch==8.12.1
+
+# Utilities
+python-dotenv==1.0.1
+structlog==24.1.0
+tenacity==8.2.3
+numpy==1.26.4
+scipy==1.12.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+httpx==0.26.0
+
+# Type checking
+mypy==1.8.0
+types-redis==4.6.0
