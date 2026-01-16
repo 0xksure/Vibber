@@ -95,7 +95,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/vibber_test?sslmode=disable
           REDIS_URL: redis://localhost:6379
 
-  # Build and push Docker images
+  # Build and push Docker images to DigitalOcean Container Registry
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -136,7 +136,7 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.REGISTRY_NAME }}/ai-agent:${{ github.sha }}
           docker push ${{ env.REGISTRY }}/${{ env.REGISTRY_NAME }}/ai-agent:latest
 
-  # Deploy to DigitalOcean
+  # Deploy to DigitalOcean App Platform
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -150,33 +150,29 @@ jobs:
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      - name: Save DigitalOcean kubeconfig
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
-
-      - name: Deploy to Kubernetes
+      - name: Deploy to App Platform
         run: |
-          # Update image tags in deployment manifests
-          sed -i 's|IMAGE_TAG|${{ github.sha }}|g' k8s/*.yaml
+          # Get the app ID
+          APP_ID=$(doctl apps list --format ID,Spec.Name --no-header | grep vibber | awk '{print $1}')
 
-          # Apply Kubernetes manifests
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/secrets.yaml
-          kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/postgres.yaml
-          kubectl apply -f k8s/redis.yaml
-          kubectl apply -f k8s/backend.yaml
-          kubectl apply -f k8s/ai-agent.yaml
-          kubectl apply -f k8s/frontend.yaml
-          kubectl apply -f k8s/ingress.yaml
+          if [ -n "$APP_ID" ]; then
+            echo "Triggering deployment for app: $APP_ID"
+            # Create a new deployment - App Platform will use the latest images
+            doctl apps create-deployment $APP_ID --wait
+          else
+            echo "App not found. App Platform will be created by Terraform."
+            echo "Run 'terraform apply' to create the infrastructure first."
+          fi
 
-          # Wait for rollout
-          kubectl rollout status deployment/vibber-backend -n vibber
-          kubectl rollout status deployment/vibber-ai-agent -n vibber
-          kubectl rollout status deployment/vibber-frontend -n vibber
+      - name: Get deployment status
+        run: |
+          APP_ID=$(doctl apps list --format ID,Spec.Name --no-header | grep vibber | awk '{print $1}')
+          if [ -n "$APP_ID" ]; then
+            doctl apps get $APP_ID --format DefaultIngress,LiveURL
+          fi
 
       - name: Notify deployment success
         if: success()
         run: |
           echo "Deployment successful!"
-          echo "Frontend: https://app.vibber.io"
-          echo "API: https://api.vibber.io"
+          echo "Images pushed with tag: ${{ github.sha }}"

@@ -18,57 +18,39 @@ variable "environment" {
 }
 
 variable "region" {
-  description = "DigitalOcean region"
+  description = "DigitalOcean region for databases (Frankfurt)"
   type        = string
-  default     = "nyc1"
+  default     = "fra1"
+}
+
+variable "app_region" {
+  description = "DigitalOcean App Platform region (Frankfurt)"
+  type        = string
+  default     = "fra"
 }
 
 variable "spaces_region" {
-  description = "DigitalOcean Spaces region"
+  description = "DigitalOcean Spaces region (Frankfurt)"
   type        = string
-  default     = "nyc3"
+  default     = "fra1"
 }
 
-# Kubernetes Configuration
-variable "kubernetes_version" {
-  description = "Kubernetes version"
+# App Platform Configuration
+variable "app_instance_size" {
+  description = "Instance size for App Platform services (basic-xxs is cheapest at $5/month)"
   type        = string
-  default     = "1.29.1-do.0"
+  default     = "basic-xxs"
 }
 
-variable "node_size" {
-  description = "Droplet size for Kubernetes nodes"
-  type        = string
-  default     = "s-2vcpu-4gb"
-}
-
-variable "node_count" {
-  description = "Initial number of nodes in the cluster"
-  type        = number
-  default     = 3
-}
-
-variable "min_nodes" {
-  description = "Minimum number of nodes for autoscaling"
-  type        = number
-  default     = 2
-}
-
-variable "max_nodes" {
-  description = "Maximum number of nodes for autoscaling"
-  type        = number
-  default     = 10
-}
-
-# Database Configuration
+# Database Configuration (cheapest options)
 variable "db_size" {
-  description = "Database droplet size"
+  description = "Database droplet size (db-s-1vcpu-1gb is cheapest at ~$15/month)"
   type        = string
   default     = "db-s-1vcpu-1gb"
 }
 
 variable "cache_size" {
-  description = "Redis cache droplet size"
+  description = "Redis cache droplet size (db-s-1vcpu-1gb is cheapest at ~$15/month)"
   type        = string
   default     = "db-s-1vcpu-1gb"
 }
@@ -80,48 +62,10 @@ variable "domain" {
   default     = "vibber.io"
 }
 
-variable "manage_dns" {
-  description = "Whether Terraform should manage DNS records"
-  type        = bool
-  default     = false
-}
-
-variable "ssl_certificate_name" {
-  description = "Name of the SSL certificate in DigitalOcean"
-  type        = string
-  default     = ""
-}
-
-variable "cdn_domain" {
-  description = "Custom domain for CDN"
-  type        = string
-  default     = ""
-}
-
-variable "cdn_certificate_name" {
-  description = "Certificate name for CDN custom domain"
-  type        = string
-  default     = ""
-}
-
 variable "allowed_origins" {
   description = "Allowed origins for CORS on Spaces bucket"
   type        = list(string)
   default     = ["https://app.vibber.io", "https://vibber.io"]
-}
-
-# Monitoring
-variable "enable_monitoring" {
-  description = "Enable Prometheus/Grafana monitoring stack"
-  type        = bool
-  default     = true
-}
-
-variable "grafana_admin_password" {
-  description = "Grafana admin password"
-  type        = string
-  sensitive   = true
-  default     = "admin"
 }
 
 # Application Configuration
@@ -153,7 +97,14 @@ variable "jwt_secret" {
   default     = ""
 }
 
-# OAuth Credentials
+variable "internal_service_key" {
+  description = "Internal service key for agent-to-backend communication"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# OAuth Credentials (optional - can be set per-organization in the app)
 variable "slack_client_id" {
   description = "Slack OAuth client ID"
   type        = string

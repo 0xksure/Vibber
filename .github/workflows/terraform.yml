@@ -1,0 +1,314 @@
+name: Terraform Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+env:
+  TF_VERSION: '1.7.0'
+  TF_WORKING_DIR: terraform
+  # DigitalOcean Spaces credentials for Terraform state backend
+  AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
+
+jobs:
+  # Validate and format check
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate -no-color
+
+      - name: Comment on PR (format issues)
+        if: steps.fmt.outcome == 'failure' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Terraform Format Check Failed**\n\nPlease run `terraform fmt -recursive` in the terraform directory and commit the changes.'
+            })
+
+  # Plan infrastructure changes
+  plan:
+    name: Terraform Plan
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Select Workspace
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          ENV="${{ github.event.inputs.environment || 'production' }}"
+          terraform workspace select $ENV || terraform workspace new $ENV
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan \
+            -var="do_token=${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" \
+            -var="environment=${{ github.event.inputs.environment || 'production' }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="internal_service_key=${{ secrets.INTERNAL_SERVICE_KEY }}" \
+            -var="anthropic_api_key=${{ secrets.ANTHROPIC_API_KEY }}" \
+            -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+            -var="mixpanel_token=${{ secrets.MIXPANEL_TOKEN }}" \
+            -var="slack_client_id=${{ secrets.SLACK_CLIENT_ID }}" \
+            -var="slack_client_secret=${{ secrets.SLACK_CLIENT_SECRET }}" \
+            -var="github_client_id=${{ secrets.OAUTH_GITHUB_CLIENT_ID }}" \
+            -var="github_client_secret=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
+            -var="jira_client_id=${{ secrets.JIRA_CLIENT_ID }}" \
+            -var="jira_client_secret=${{ secrets.JIRA_CLIENT_SECRET }}" \
+            -detailed-exitcode \
+            -no-color \
+            -out=tfplan 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            ${{ env.TF_WORKING_DIR }}/tfplan
+            ${{ env.TF_WORKING_DIR }}/plan_output.txt
+          retention-days: 5
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('${{ env.TF_WORKING_DIR }}/plan_output.txt', 'utf8');
+            const exitCode = '${{ steps.plan.outputs.exitcode }}';
+
+            let status = '✅ No changes detected';
+            if (exitCode === '2') {
+              status = '⚠️ Changes detected';
+            } else if (exitCode === '1') {
+              status = '❌ Plan failed';
+            }
+
+            const truncatedPlan = planOutput.length > 60000
+              ? planOutput.substring(0, 60000) + '\n... (truncated)'
+              : planOutput;
+
+            const body = `## Terraform Plan Results
+
+            **Status:** ${status}
+
+            <details>
+            <summary>Show Plan Output</summary>
+
+            \`\`\`hcl
+            ${truncatedPlan}
+            \`\`\`
+
+            </details>
+
+            ---
+            *Pushed by @${{ github.actor }}, Action: \`${{ github.event_name }}\`*
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Apply infrastructure changes (only on main branch push or manual trigger)
+  apply:
+    name: Terraform Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://app.vibber.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Select Workspace
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          ENV="${{ github.event.inputs.environment || 'production' }}"
+          terraform workspace select $ENV || terraform workspace new $ENV
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          if [ -f tfplan ]; then
+            terraform apply -auto-approve tfplan
+          else
+            terraform apply \
+              -var="do_token=${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" \
+              -var="environment=${{ github.event.inputs.environment || 'production' }}" \
+              -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+              -var="internal_service_key=${{ secrets.INTERNAL_SERVICE_KEY }}" \
+              -var="anthropic_api_key=${{ secrets.ANTHROPIC_API_KEY }}" \
+              -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+              -var="mixpanel_token=${{ secrets.MIXPANEL_TOKEN }}" \
+              -var="slack_client_id=${{ secrets.SLACK_CLIENT_ID }}" \
+              -var="slack_client_secret=${{ secrets.SLACK_CLIENT_SECRET }}" \
+              -var="github_client_id=${{ secrets.OAUTH_GITHUB_CLIENT_ID }}" \
+              -var="github_client_secret=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
+              -var="jira_client_id=${{ secrets.JIRA_CLIENT_ID }}" \
+              -var="jira_client_secret=${{ secrets.JIRA_CLIENT_SECRET }}" \
+              -auto-approve
+          fi
+
+      - name: Terraform Output
+        id: output
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform output -json > terraform_outputs.json
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: ${{ env.TF_WORKING_DIR }}/terraform_outputs.json
+          retention-days: 30
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "::notice::Terraform apply completed successfully!"
+          echo "Infrastructure has been updated for environment: ${{ github.event.inputs.environment || 'production' }}"
+
+  # Destroy infrastructure (manual trigger only)
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    environment:
+      name: ${{ github.event.inputs.environment }}-destroy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Select Workspace
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform workspace select ${{ github.event.inputs.environment }} || terraform workspace new ${{ github.event.inputs.environment }}
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform destroy \
+            -var="do_token=${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="internal_service_key=${{ secrets.INTERNAL_SERVICE_KEY }}" \
+            -var="anthropic_api_key=${{ secrets.ANTHROPIC_API_KEY }}" \
+            -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+            -var="mixpanel_token=${{ secrets.MIXPANEL_TOKEN }}" \
+            -var="slack_client_id=${{ secrets.SLACK_CLIENT_ID }}" \
+            -var="slack_client_secret=${{ secrets.SLACK_CLIENT_SECRET }}" \
+            -var="github_client_id=${{ secrets.OAUTH_GITHUB_CLIENT_ID }}" \
+            -var="github_client_secret=${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}" \
+            -var="jira_client_id=${{ secrets.JIRA_CLIENT_ID }}" \
+            -var="jira_client_secret=${{ secrets.JIRA_CLIENT_SECRET }}" \
+            -auto-approve
+
+      - name: Notify Destruction
+        if: success()
+        run: |
+          echo "::warning::Infrastructure destroyed for environment: ${{ github.event.inputs.environment }}"
