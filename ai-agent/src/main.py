@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.core.agent_manager import AgentManager
 from src.core.message_consumer import MessageConsumer
-from src.api import agents, training, health
+from src.api import agents, training, health, ralph
 
 # Configure structured logging
 structlog.configure(
@@ -92,6 +92,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(training.router, prefix="/api/v1/training", tags=["Training"])
+app.include_router(ralph.router, prefix="/api/v1/ralph", tags=["Ralph Wiggum"])
 
 
 @app.get("/")
@@ -100,7 +101,18 @@ async def root():
     return {
         "service": "Vibber AI Agent",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
+        "features": [
+            "Employee clone agents",
+            "Ralph Wiggum iterative task execution",
+            "MCP integration",
+        ],
+        "endpoints": {
+            "agents": "/api/v1/agents",
+            "training": "/api/v1/training",
+            "ralph": "/api/v1/ralph",
+            "docs": "/docs",
+        }
     }
 
 

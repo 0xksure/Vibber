@@ -172,6 +172,17 @@ func main() {
 				r.Delete("/{provider}", h.Credentials.Delete)
 				r.Post("/{provider}/verify", h.Credentials.Verify)
 			})
+
+			// Ralph Wiggum iterative task execution
+			r.Route("/ralph", func(r chi.Router) {
+				r.Post("/tasks", h.Ralph.CreateTask)
+				r.Get("/tasks", h.Ralph.ListTasks)
+				r.Post("/tasks/sync", h.Ralph.CreateTaskSync)
+				r.Get("/tasks/{taskID}", h.Ralph.GetTask)
+				r.Post("/tasks/{taskID}/cancel", h.Ralph.CancelTask)
+				r.Get("/tasks/{taskID}/wait", h.Ralph.WaitForTask)
+				r.Get("/health", h.Ralph.HealthCheck)
+			})
 		})
 
 		// Webhook routes (validated by signature)

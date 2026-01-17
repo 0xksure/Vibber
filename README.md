@@ -30,6 +30,46 @@ Vibber enables employees to create AI agent clones of themselves that can autono
 - **Confidence Scoring** - Transparent confidence levels for all agent actions
 - **Training Interface** - Easy feedback loop to continuously improve agent performance
 
+### Ralph Wiggum Iterative Task Execution
+
+Vibber includes **Ralph Wiggum**, an autonomous AI coding agent that iterates on tasks until completion. Named after the Simpsons character who never stops trying, Ralph uses a simple but powerful technique:
+
+**How it works:**
+1. Submit a task description (e.g., "Fix the authentication bug in auth.py")
+2. Ralph iterates on the task, seeing previous work via git history and modified files
+3. Backpressure from tests, linting, and type checking validates each iteration
+4. Agent continues until a completion signal is detected or max iterations reached
+
+**Key Features:**
+- **Iterative Improvement** - Learns from mistakes and previous iterations
+- **Backpressure Validation** - Automatic test, lint, and typecheck runs
+- **Completion Detection** - Flexible completion signals and semantic analysis
+- **Tool Access** - File operations, shell commands, git integration
+- **Configurable** - Custom test commands, max iterations, and completion promises
+
+**API Usage:**
+```bash
+# Create a task (async)
+POST /api/v1/ralph/tasks
+{
+  "prompt": "Add input validation to the user registration form",
+  "max_iterations": 20,
+  "run_tests": true
+}
+
+# Create and wait for completion (sync)
+POST /api/v1/ralph/tasks/sync?timeout=600
+{
+  "prompt": "Fix the failing test in test_auth.py"
+}
+
+# Check task status
+GET /api/v1/ralph/tasks/{taskId}
+
+# Cancel a running task
+POST /api/v1/ralph/tasks/{taskId}/cancel
+```
+
 ### Supported Integrations
 
 | Platform | Capabilities |
@@ -141,6 +181,7 @@ vibber/
 ├── ai-agent/               # Python AI service
 │   └── src/
 │       ├── core/           # Agent core logic
+│       ├── ralph/          # Ralph Wiggum iterative agent
 │       ├── tools/          # Integration tools
 │       ├── embeddings/     # Vector operations
 │       └── memory/         # State management

@@ -17,6 +17,7 @@ type Handlers struct {
 	Organization *OrganizationHandler
 	Webhook      *WebhookHandler
 	Credentials  *CredentialsHandler
+	Ralph        *RalphHandler
 }
 
 // NewHandlers creates a new handlers instance
@@ -31,5 +32,6 @@ func NewHandlers(repos *repository.Repositories, redis *redis.Client, cfg *confi
 		Organization: NewOrganizationHandler(repos, redis, cfg),
 		Webhook:      NewWebhookHandler(repos, redis, cfg),
 		Credentials:  NewCredentialsHandler(repos, redis, cfg),
+		Ralph:        NewRalphHandler(repos, redis, cfg),
 	}
 }
